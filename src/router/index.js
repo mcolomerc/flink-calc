@@ -3,11 +3,13 @@ import WorkloadView from '@/views/WorkloadView.vue';
 import EnvironmentView from '@/views/EnvironmentView.vue';
 import TopologyView from '@/views/TopologyView.vue';
 import ResultsView from '@/views/ResultsView.vue';
+import HomeView from '@/views/HomeView.vue';
 
 const routes = [
   {
     path: '/',
-    redirect: '/workload'
+    name: 'Home',
+    component: HomeView
   },
   {
     path: '/workload',

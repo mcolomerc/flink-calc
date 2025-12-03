@@ -43,26 +43,7 @@ npm run build
 npm run preview
 ```
 
-## Deployment
 
-### GitHub Pages (Automated)
-
-The app automatically deploys to GitHub Pages when you create a new version tag:
-
-```bash
-# Quick deploy using the helper script
-./deploy.sh
-
-# Or manually:
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-See [GITHUB-PAGES-DEPLOY.md](GITHUB-PAGES-DEPLOY.md) for detailed instructions.
-
-### AWS S3
-
-See [DEPLOY-S3.md](DEPLOY-S3.md) for S3 deployment instructions.
 
 ## Quick Start
 
@@ -87,39 +68,11 @@ See [DEPLOY-S3.md](DEPLOY-S3.md) for S3 deployment instructions.
    - Review parallelism recommendations
    - Export BoM or Flink config
 
-## Architecture
+ 
 
-### Project Structure
+## Data Model
 
-```
-src/
-├── estimator/          # Pure JS estimation logic
-│   └── index.js        # Core algorithms and formulas
-├── stores/             # Pinia state management
-│   ├── workload.js     # Workload/SLA state
-│   ├── environment.js  # Environment config
-│   ├── graph.js        # Operator topology
-│   └── estimate.js     # Results and export
-├── components/         # Vue components
-│   ├── WorkloadForm.vue
-│   ├── EnvironmentForm.vue
-│   ├── TopologyBuilder.vue
-│   ├── OperatorForm.vue
-│   └── EstimateResults.vue
-├── views/             # Route views
-│   ├── WorkloadView.vue
-│   ├── EnvironmentView.vue
-│   ├── TopologyView.vue
-│   └── ResultsView.vue
-├── router/            # Vue Router config
-│   └── index.js
-├── App.vue            # Main app component
-└── main.js            # App entry point
-```
-
-### Data Model
-
-#### Workload
+### Workload
 ```javascript
 {
   inputRateAvg: 50000,      // records/sec
@@ -131,7 +84,7 @@ src/
 }
 ```
 
-#### Environment
+### Environment
 ```javascript
 {
   slotsPerTM: 4,
@@ -144,7 +97,7 @@ src/
 }
 ```
 
-#### Operator
+### Operator
 ```javascript
 {
   id: 'op-1',
@@ -295,9 +248,7 @@ Load it via "Load Sample" button in Topology Builder.
 ## Future Enhancements (V2)
 
 - [ ] Import real metrics from running jobs
-- [ ] Autoscaler target recommendations
-- [ ] Visual DAG canvas with drag-and-drop
-- [ ] Cost estimation (cloud pricing)
+- [ ] Autoscaler target recommendations 
 - [ ] Historical comparison
 - [ ] Multi-job analysis
 - [ ] Advanced state backend tuning

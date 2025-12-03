@@ -1,16 +1,20 @@
 <template>
   <div id="app">
-    <header class="app-header">
+    <header class="app-header" v-if="!isHome">
       <div class="header-content">
         <div style="display: flex; align-items: center; gap: 18px;">
-          <img src="/flink-logo.svg" alt="Flink Logo" style="height: 40px; width: auto;" />
-          <h1>Estimator</h1>
+          <router-link to="/" style="display: flex; align-items: center; text-decoration: none;">
+            <img src="/flink-logo.svg" alt="Flink Logo" style="height: 60px; width: auto; cursor: pointer;" />
+          </router-link>
+          <div>
+            <h1>Estimator</h1>
+            <p class="subtitle">Estimate parallelism and compute your bill of materials</p>
+          </div>
         </div>
-        <p class="subtitle">Estimate parallelism and compute your bill of materials</p>
       </div>
     </header>
     
-    <nav class="app-nav">
+    <nav class="app-nav" v-if="!isHome">
       <router-link to="/workload" class="nav-item">
         <span class="nav-number">1</span>
         <span class="nav-label">Workload</span>
@@ -39,7 +43,7 @@
     </main>
     
     <footer class="app-footer">
-      <p>Flink Calculator v1.0 | Built with Vue 3 + Vite</p>
+      <p>Flink Estimator v.1.0.0 | made with ❤️</p>
     </footer>
   </div>
 </template>
@@ -47,9 +51,12 @@
 <script setup>
 import { computed } from 'vue';
 import { useGraphStore } from '@/stores/graph';
+import { useRoute } from 'vue-router';
 
 const graphStore = useGraphStore();
 const hasTopology = computed(() => graphStore.hasOperators);
+const route = useRoute();
+const isHome = computed(() => route.path === '/');
 
 const handleResultsClick = (event) => {
   if (!hasTopology.value) {
@@ -173,6 +180,7 @@ body {
   max-width: 1400px;
   width: 100%;
   margin: 0 auto;
+  background: #f5f7fa;
 }
 
 .app-footer {

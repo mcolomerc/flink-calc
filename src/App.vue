@@ -3,7 +3,7 @@
     <header class="app-header" v-if="!isHome">
       <div class="header-content">
         <div style="display: flex; align-items: center; gap: 18px;">
-          <router-link to="/" style="display: flex; align-items: center; text-decoration: none;">
+          <router-link :to="{ name: 'Home' }" style="display: flex; align-items: center; text-decoration: none;">
             <img src="/flink-logo.svg" alt="Flink Logo" style="height: 60px; width: auto; cursor: pointer;" />
           </router-link>
           <div>

@@ -192,6 +192,162 @@
         <strong>Record impact on capacity:</strong> {{ formatDescription }}
       </div>
     </div>
+    
+    <div class="form-section">
+      <h3>Advanced Memory (FLIP-49/116)</h3>
+      
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input 
+            type="checkbox" 
+            v-model="localEnv.useFlip49"
+            @change="updateEnvironment"
+          />
+          Enable FLIP-49 unified memory configuration
+        </label>
+        <span class="help-text">Use accurate FLIP-49/116 memory calculator instead of heuristic split. Recommended for production deployments.</span>
+      </div>
+      
+      <div v-if="localEnv.useFlip49" class="flip49-settings">
+        <div class="form-group">
+          <label>Deployment Type</label>
+          <select 
+            v-model="localEnv.deploymentType"
+            @change="updateEnvironment"
+          >
+            <option value="standalone">Standalone</option>
+            <option value="kubernetes">Kubernetes</option>
+            <option value="docker">Docker</option>
+            <option value="yarn">YARN</option>
+          </select>
+          <span class="help-text">Deployment environment. Affects heap cutoff constraints and memory safety margins.</span>
+        </div>
+        
+        <div class="form-group">
+          <label>Network Memory Fraction</label>
+          <input 
+            type="number" 
+            v-model.number="localEnv.flip49NetworkFraction"
+            @change="updateEnvironment"
+            min="0.05"
+            max="0.25"
+            step="0.01"
+          />
+          <span class="help-text">Fraction of Flink memory for network buffers. Default: 0.1 (10%). Range: 5-25%.</span>
+        </div>
+        
+        <div class="form-group">
+          <label>Managed Memory Fraction</label>
+          <input 
+            type="number" 
+            v-model.number="localEnv.flip49ManagedFraction"
+            @change="updateEnvironment"
+            min="0.2"
+            max="0.8"
+            step="0.01"
+          />
+          <span class="help-text">Fraction of Flink memory for RocksDB state. Default: 0.4 (40%). Increase for large states, decrease for heap-heavy workloads.</span>
+        </div>
+        
+        <div class="form-group">
+          <label>Network Memory Min/Max (MiB)</label>
+          <div class="range-inputs">
+            <input 
+              type="number" 
+              v-model.number="localEnv.flip49NetworkMemoryMin"
+              @change="updateEnvironment"
+              min="32"
+              placeholder="Min"
+            />
+            <span class="range-separator">to</span>
+            <input 
+              type="number" 
+              v-model.number="localEnv.flip49NetworkMemoryMax"
+              @change="updateEnvironment"
+              max="2048"
+              placeholder="Max"
+            />
+          </div>
+          <span class="help-text">Absolute bounds for network memory. Default: 64-1024 MiB. Clamps fractional calculation.</span>
+        </div>
+        
+        <div class="form-group">
+          <label>Overhead Memory Min/Max (MiB)</label>
+          <div class="range-inputs">
+            <input 
+              type="number" 
+              v-model.number="localEnv.flip49OverheadMemoryMin"
+              @change="updateEnvironment"
+              min="128"
+              placeholder="Min"
+            />
+            <span class="range-separator">to</span>
+            <input 
+              type="number" 
+              v-model.number="localEnv.flip49OverheadMemoryMax"
+              @change="updateEnvironment"
+              max="1024"
+              placeholder="Max"
+            />
+          </div>
+          <span class="help-text">JVM overhead bounds (GC, metaspace, etc.). Default: 192-768 MiB.</span>
+        </div>
+        
+        <div class="form-group">
+          <label>Metaspace Size (MiB)</label>
+          <input 
+            type="number" 
+            v-model.number="localEnv.flip49MetaspaceSize"
+            @change="updateEnvironment"
+            min="64"
+            max="256"
+          />
+          <span class="help-text">JVM metaspace allocation. Default: 96 MiB.</span>
+        </div>
+        
+        <div class="form-group">
+          <label>Direct Memory Cap (MiB)</label>
+          <input 
+            type="number" 
+            v-model.number="localEnv.flip49DirectMemoryCap"
+            @change="updateEnvironment"
+            min="256"
+            max="1024"
+          />
+          <span class="help-text">Max direct memory for off-heap structures. Default: 512 MiB.</span>
+        </div>
+        
+        <div v-if="isContainerized" class="form-group">
+          <label>Heap Cutoff Min (MiB)</label>
+          <input 
+            type="number" 
+            v-model.number="localEnv.flip49HeapCutoffMin"
+            @change="updateEnvironment"
+            min="512"
+            max="2048"
+          />
+          <span class="help-text">Minimum heap for containerized deployments. Default: 1024 MiB.</span>
+        </div>
+        
+        <div v-if="isContainerized" class="form-group">
+          <label>Heap Cutoff Ratio</label>
+          <input 
+            type="number" 
+            v-model.number="localEnv.flip49HeapCutoffRatio"
+            @change="updateEnvironment"
+            min="0.5"
+            max="0.95"
+            step="0.05"
+          />
+          <span class="help-text">Max heap as ratio of process memory. Default: 0.8 (80%). Prevents OOM in containers.</span>
+        </div>
+        
+        <div class="flip49-info">
+          <strong>ℹ️ FLIP-49 Calculator Enabled</strong>
+          <p>Memory will be split using FLIP-49 unified configuration rules. Results will include Flink configuration snippet.</p>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -239,6 +395,10 @@ const formatDescription = computed(() => {
   const direction = combined >= 0 ? '+' : '';
   
   return `Format (${localEnv.value.recordFormat}): ${formatMult}x | Size (${bytes}B): ${sizePenalty}x penalty | Combined: ${direction}${combined.toFixed(0)}%`;
+});
+
+const isContainerized = computed(() => {
+  return ['kubernetes', 'docker'].includes(localEnv.value.deploymentType);
 });
 
 const updateEnvironment = () => {
@@ -337,5 +497,46 @@ h3 {
   border-radius: 4px;
   font-size: 14px;
   color: #1565c0;
+}
+
+.flip49-settings {
+  background: #fafafa;
+  padding: 15px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.range-inputs input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.range-separator {
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.flip49-info {
+  margin-top: 12px;
+  padding: 12px;
+  background: #fff9e6;
+  border-left: 4px solid #ffc107;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #8b6914;
+}
+
+.flip49-info p {
+  margin: 4px 0 0 0;
+  font-size: 13px;
 }
 </style>

@@ -15,7 +15,21 @@ export const useEnvironmentStore = defineStore('environment', {
     recordWireSizeBytes: 1000,
     recordLogicalSizeBytes: 1000,
     recordFormat: 'avro',
-    compressionCodec: 'none'
+    compressionCodec: 'none',
+    // FLIP-49 configuration
+    useFlip49: false,
+    deploymentType: 'standalone', // 'standalone', 'kubernetes', 'docker', 'yarn'
+    flip49NetworkFraction: 0.1,
+    flip49ManagedFraction: 0.4,
+    flip49OverheadFraction: 0.1,
+    flip49NetworkMemoryMin: 64, // MiB
+    flip49NetworkMemoryMax: 1024, // MiB
+    flip49OverheadMemoryMin: 192, // MiB
+    flip49OverheadMemoryMax: 768, // MiB
+    flip49MetaspaceSize: 96, // MiB
+    flip49DirectMemoryCap: 512, // MiB
+    flip49HeapCutoffMin: 1024, // MiB
+    flip49HeapCutoffRatio: 0.8
   }),
   
   getters: {
@@ -102,6 +116,19 @@ export const useEnvironmentStore = defineStore('environment', {
       this.recordLogicalSizeBytes = 1000;
       this.recordFormat = 'avro';
       this.compressionCodec = 'none';
+      this.useFlip49 = false;
+      this.deploymentType = 'standalone';
+      this.flip49NetworkFraction = 0.1;
+      this.flip49ManagedFraction = 0.4;
+      this.flip49OverheadFraction = 0.1;
+      this.flip49NetworkMemoryMin = 64;
+      this.flip49NetworkMemoryMax = 1024;
+      this.flip49OverheadMemoryMin = 192;
+      this.flip49OverheadMemoryMax = 768;
+      this.flip49MetaspaceSize = 96;
+      this.flip49DirectMemoryCap = 512;
+      this.flip49HeapCutoffMin = 1024;
+      this.flip49HeapCutoffRatio = 0.8;
     }
   }
 });

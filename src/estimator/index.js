@@ -1,6 +1,8 @@
 /**
  * Default capacity (records/sec/subtask) for each operator type
  */
+import { calculateFlinkMemory, applyContainerizationConstraints } from './flip49';
+
 export const DEFAULT_CAPACITY = {
   source: 200_000,
   map_filter: 250_000,
@@ -228,6 +230,12 @@ export function taskManagersNeeded(totalSlots, env) {
  * Calculate memory split for TaskManager
  */
 export function memorySplit(env, stateHeavy) {
+  // Use FLIP-49 calculator if enabled
+  if (env.useFlip49) {
+    return flip49MemorySplit(env);
+  }
+  
+  // Default heuristic-based split
   const total = env.tmProcessMemoryGiB;
   const overhead = total * 0.10;
   const network = total * (stateHeavy ? 0.12 : 0.10);
@@ -240,6 +248,50 @@ export function memorySplit(env, stateHeavy) {
     managed: parseFloat(managed.toFixed(2)),
     network: parseFloat(network.toFixed(2)),
     overhead: parseFloat(overhead.toFixed(2))
+  };
+}
+
+/**
+ * Calculate memory split using FLIP-49 unified memory configuration
+ */
+function flip49MemorySplit(env) {
+  const processMemoryMiB = env.tmProcessMemoryGiB * 1024; // Convert GiB to MiB
+  
+  // Configure FLIP-49 with environment settings
+  const flip49Config = {
+    networkFraction: env.flip49NetworkFraction,
+    managedFraction: env.flip49ManagedFraction,
+    overheadFraction: env.flip49OverheadFraction,
+    networkMemoryMin: env.flip49NetworkMemoryMin,
+    networkMemoryMax: env.flip49NetworkMemoryMax,
+    overheadMemoryMin: env.flip49OverheadMemoryMin,
+    overheadMemoryMax: env.flip49OverheadMemoryMax,
+    metaspaceSize: env.flip49MetaspaceSize,
+    directMemoryCap: env.flip49DirectMemoryCap
+  };
+  
+  // Calculate base memory split
+  let split = calculateFlinkMemory(processMemoryMiB, flip49Config);
+  
+  // Apply containerization constraints if needed
+  const isContainerized = ['kubernetes', 'docker'].includes(env.deploymentType);
+  if (isContainerized) {
+    split = applyContainerizationConstraints(split, {
+      heapCutoffMin: env.flip49HeapCutoffMin,
+      heapCutoffRatio: env.flip49HeapCutoffRatio,
+      isContainerized: true
+    });
+  }
+  
+  // Convert back to GiB and format
+  return {
+    total: parseFloat((processMemoryMiB / 1024).toFixed(2)),
+    heap: parseFloat((split.heapMemory / 1024).toFixed(2)),
+    managed: parseFloat((split.managedMemory / 1024).toFixed(2)),
+    network: parseFloat((split.networkMemory / 1024).toFixed(2)),
+    overhead: parseFloat((split.overheadMemory / 1024).toFixed(2)),
+    flip49: true, // Flag indicating FLIP-49 was used
+    flip49Breakdown: split // Store raw MiB breakdown for config export
   };
 }
 

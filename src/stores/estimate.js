@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia';
 import { estimate, estimateConservative } from '@/estimator';
+import { generateFlinkConfig } from '@/estimator/flip49';
 import { useWorkloadStore } from './workload';
 import { useEnvironmentStore } from './environment';
 import { useGraphStore } from './graph';
@@ -104,8 +105,7 @@ export const useEstimateStore = defineStore('estimate', {
       
       // Check if FLIP-49 was used
       if (memorySplitEach.flip49 && memorySplitEach.flip49Breakdown) {
-        // Use FLIP-49 configuration from flip49 module
-        const { generateFlinkConfig } = require('@/estimator/flip49');
+        // Use FLIP-49 configuration generator
         return generateFlinkConfig(
           memorySplitEach.flip49Breakdown,
           taskManagers.count,

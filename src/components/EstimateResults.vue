@@ -119,6 +119,11 @@
         </table>
       </div>
       
+      <!-- DAG Visualization -->
+      <div class="dag-visualization">
+        <DAGCanvas />
+      </div>
+      
       <!-- Warnings -->
       <div v-if="result.warnings.length > 0" class="warnings-section">
         <h3>Warnings & Recommendations</h3>
@@ -227,6 +232,7 @@
 <script setup>
 import { computed } from 'vue';
 import { useEstimateStore } from '@/stores/estimate';
+import DAGCanvas from './DAGCanvas.vue';
 
 const estimateStore = useEstimateStore();
 
@@ -521,6 +527,21 @@ tbody tr:hover {
 .badge.stateful {
   background: #e8f8f5;
   color: #16a085;
+}
+
+.dag-visualization {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.dag-visualization :deep(.dag-canvas) {
+  margin: 0;
+}
+
+.dag-visualization :deep(.canvas-controls) {
+  display: none; /* Hide interactive controls in results view */
 }
 
 .warnings-section {

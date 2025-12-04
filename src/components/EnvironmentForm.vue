@@ -161,9 +161,6 @@ const efficiencyDescription = computed(() => {
   return `Java ${localEnv.value.javaVersion}: +${javaGain}%, Flink ${localEnv.value.flinkVersion}: +${flinkGain}% → Total: +${totalGain}% capacity`;
 });
 
-const envStore = useEnvironmentStore();
-const localEnv = ref({ ...envStore.$state });
-
 const updateEnvironment = () => {
   envStore.updateEnvironment(localEnv.value);
 };

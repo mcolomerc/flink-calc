@@ -150,6 +150,17 @@
         <DAGCanvas />
       </div>
       
+      <!-- Flink Configuration Preview -->
+      <div class="flink-config-section">
+        <div class="flink-config-header">
+          <h3>Flink Configuration</h3>
+          <button @click="exportConfig" class="btn-secondary btn-small">Export flink-conf.yaml</button>
+        </div>
+        <div class="config-preview">
+          <pre><code>{{ flinkConfigPreview }}</code></pre>
+        </div>
+      </div>
+      
       <!-- Warnings -->
       <div v-if="result.warnings.length > 0" class="warnings-section">
         <h3>Warnings & Recommendations</h3>
@@ -269,6 +280,10 @@ const result = computed(() => estimateStore.result);
 const conservativeResult = computed(() => estimateStore.conservativeResult);
 const confidence = computed(() => estimateStore.confidence);
 const confidenceLevel = computed(() => estimateStore.confidenceLevel);
+
+const flinkConfigPreview = computed(() => {
+  return estimateStore.exportFlinkConfig();
+});
 
 // Automatically compute results when component is mounted
 onMounted(() => {
@@ -824,5 +839,50 @@ tbody tr:hover {
   border-left: 3px solid #f39c12;
   border-radius: 4px;
   font-size: 13px;
+}
+
+.flink-config-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+  border-left: 4px solid #27ae60;
+}
+
+.flink-config-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.flink-config-header h3 {
+  margin: 0;
+  color: #2c3e50;
+}
+
+.btn-small {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+.config-preview {
+  background: #2c3e50;
+  border-radius: 6px;
+  overflow-x: auto;
+  padding: 0;
+}
+
+.config-preview pre {
+  margin: 0;
+  padding: 16px;
+}
+
+.config-preview code {
+  color: #ecf0f1;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
 }
 </style>

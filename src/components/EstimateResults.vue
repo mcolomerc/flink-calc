@@ -10,29 +10,6 @@
     </div>
     
     <div v-else class="results-content">
-      <!-- Configuration Summary -->
-      <div class="config-summary">
-        <h3>Configuration</h3>
-        <div class="config-grid">
-          <div class="config-item">
-            <span class="config-label">Java Version</span>
-            <span class="config-value">{{ envStore.javaVersion }}</span>
-          </div>
-          <div class="config-item">
-            <span class="config-label">Flink Version</span>
-            <span class="config-value">{{ envStore.flinkVersion }}</span>
-          </div>
-          <div class="config-item">
-            <span class="config-label">Record Format</span>
-            <span class="config-value">{{ envStore.recordFormat }}</span>
-          </div>
-          <div class="config-item">
-            <span class="config-label">Record Wire Size</span>
-            <span class="config-value">{{ envStore.recordWireSizeBytes }} bytes</span>
-          </div>
-        </div>
-      </div>
-      
       <!-- Confidence Badge -->
       <div :class="['confidence-badge', confidenceLevel]">
         <span class="label">Confidence:</span>
@@ -140,6 +117,29 @@
             </tr>
           </tbody>
         </table>
+      </div>
+      
+      <!-- Configuration Summary -->
+      <div class="config-summary">
+        <h3>Configuration</h3>
+        <div class="config-grid">
+          <div class="config-item">
+            <span class="config-label">Java Version</span>
+            <span class="config-value">{{ envStore.javaVersion }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Flink Version</span>
+            <span class="config-value">{{ envStore.flinkVersion }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Record Format</span>
+            <span class="config-value">{{ envStore.recordFormat }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Record Wire Size</span>
+            <span class="config-value">{{ envStore.recordWireSizeBytes }} bytes</span>
+          </div>
+        </div>
       </div>
       
       <!-- DAG Visualization -->

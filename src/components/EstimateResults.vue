@@ -10,6 +10,29 @@
     </div>
     
     <div v-else class="results-content">
+      <!-- Configuration Summary -->
+      <div class="config-summary">
+        <h3>Configuration</h3>
+        <div class="config-grid">
+          <div class="config-item">
+            <span class="config-label">Java Version</span>
+            <span class="config-value">{{ envStore.javaVersion }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Flink Version</span>
+            <span class="config-value">{{ envStore.flinkVersion }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Record Format</span>
+            <span class="config-value">{{ envStore.recordFormat }}</span>
+          </div>
+          <div class="config-item">
+            <span class="config-label">Record Wire Size</span>
+            <span class="config-value">{{ envStore.recordWireSizeBytes }} bytes</span>
+          </div>
+        </div>
+      </div>
+      
       <!-- Confidence Badge -->
       <div :class="['confidence-badge', confidenceLevel]">
         <span class="label">Confidence:</span>
@@ -232,9 +255,11 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useEstimateStore } from '@/stores/estimate';
+import { useEnvironmentStore } from '@/stores/environment';
 import DAGCanvas from './DAGCanvas.vue';
 
 const estimateStore = useEstimateStore();
+const envStore = useEnvironmentStore();
 
 const hasResult = computed(() => estimateStore.hasResult);
 const result = computed(() => estimateStore.result);
@@ -319,6 +344,46 @@ const exportConfig = () => {
 
 .results-content {
   max-width: 1200px;
+}
+
+.config-summary {
+  background: #f0f4f8;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border-left: 4px solid #3498db;
+}
+
+.config-summary h3 {
+  margin-top: 0;
+  margin-bottom: 15px;
+  color: #2c3e50;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.config-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #7f8c8d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.config-value {
+  font-size: 16px;
+  font-weight: 500;
+  color: #2c3e50;
 }
 
 .confidence-badge {

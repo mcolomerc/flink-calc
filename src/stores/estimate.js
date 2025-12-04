@@ -100,8 +100,21 @@ export const useEstimateStore = defineStore('estimate', {
       
       const { taskManagers } = this.result;
       const { memorySplitEach } = taskManagers;
+      const env = useEnvironmentStore();
       
-      return `# Flink Configuration (Generated)
+      // Check if FLIP-49 was used
+      if (memorySplitEach.flip49 && memorySplitEach.flip49Breakdown) {
+        // Use FLIP-49 configuration from flip49 module
+        const { generateFlinkConfig } = require('@/estimator/flip49');
+        return generateFlinkConfig(
+          memorySplitEach.flip49Breakdown,
+          taskManagers.count,
+          taskManagers.slotsEach
+        );
+      }
+      
+      // Fallback to heuristic configuration
+      return `# Flink Configuration (Generated - Heuristic)
 # Task Manager Memory Configuration
 taskmanager.memory.process.size: ${taskManagers.processMemoryGiBEach}g
 taskmanager.memory.flink.size: ${(memorySplitEach.heap + memorySplitEach.managed + memorySplitEach.network).toFixed(2)}g
@@ -119,11 +132,11 @@ jobmanager.memory.process.size: ${this.result.jobManager.processMemoryGiB}g
 parallelism.default: ${Math.max(...this.result.operatorDetails.map(op => op.parallelism))}
 
 # State Backend
-state.backend: ${useEnvironmentStore().stateBackend}
+state.backend: ${env.stateBackend}
 
 # Checkpointing
-execution.checkpointing.interval: ${useEnvironmentStore().checkpointIntervalSec * 1000}ms
-execution.checkpointing.timeout: ${useEnvironmentStore().maxCheckpointDurationSec * 1000}ms
+execution.checkpointing.interval: ${env.checkpointIntervalSec * 1000}ms
+execution.checkpointing.timeout: ${env.maxCheckpointDurationSec * 1000}ms
 `;
     },
     

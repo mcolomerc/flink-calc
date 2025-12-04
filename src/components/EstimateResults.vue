@@ -53,7 +53,10 @@
         
         <!-- Memory Split -->
         <div class="memory-split">
-          <h4>Task Manager Memory Split</h4>
+          <div class="memory-split-header">
+            <h4>Task Manager Memory Split</h4>
+            <span v-if="result.taskManagers.memorySplitEach.flip49" class="flip49-badge">FLIP-49 Accurate</span>
+          </div>
           <div class="memory-bars">
             <div class="memory-bar">
               <div 
@@ -474,6 +477,30 @@ const exportConfig = () => {
 
 .memory-split {
   margin-top: 20px;
+}
+
+.memory-split-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.memory-split-header h4 {
+  margin: 0;
+  color: #34495e;
+}
+
+.flip49-badge {
+  display: inline-block;
+  background: #9c27b0;
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .memory-split h4 {

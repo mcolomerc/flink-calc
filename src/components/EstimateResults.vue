@@ -150,17 +150,6 @@
         <DAGCanvas />
       </div>
       
-      <!-- Flink Configuration Preview -->
-      <div class="flink-config-section">
-        <div class="flink-config-header">
-          <h3>Flink Configuration</h3>
-          <button @click="exportConfig" class="btn-secondary btn-small">Export flink-conf.yaml</button>
-        </div>
-        <div class="config-preview">
-          <pre><code>{{ flinkConfigPreview }}</code></pre>
-        </div>
-      </div>
-      
       <!-- Warnings -->
       <div v-if="result.warnings.length > 0" class="warnings-section">
         <h3>Warnings & Recommendations</h3>
@@ -250,6 +239,18 @@
       <!-- Export Actions -->
       <div class="export-section">
         <h3>Export</h3>
+        
+        <!-- Flink Configuration Preview -->
+        <div class="flink-config-section">
+          <div class="flink-config-header">
+            <h4>Flink Configuration (flink-conf.yaml)</h4>
+            <span v-if="result.taskManagers.memorySplitEach.flip49" class="flip49-badge-small">FLIP-49 Accurate</span>
+          </div>
+          <div class="config-preview">
+            <pre><code>{{ flinkConfigPreview }}</code></pre>
+          </div>
+        </div>
+        
         <div class="export-buttons">
           <button @click="exportJSON" class="btn-secondary">
             Download JSON
@@ -856,9 +857,22 @@ tbody tr:hover {
   margin-bottom: 15px;
 }
 
-.flink-config-header h3 {
+.flink-config-header h4 {
   margin: 0;
   color: #2c3e50;
+  font-size: 14px;
+}
+
+.flip49-badge-small {
+  display: inline-block;
+  background: #9c27b0;
+  color: white;
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .btn-small {
@@ -871,11 +885,14 @@ tbody tr:hover {
   border-radius: 6px;
   overflow-x: auto;
   padding: 0;
+  margin-bottom: 15px;
 }
 
 .config-preview pre {
   margin: 0;
   padding: 16px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .config-preview code {

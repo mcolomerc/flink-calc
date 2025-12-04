@@ -49,6 +49,11 @@ export function capacityFor(op, env) {
   const flinkMultiplier = getFlinkMultiplier(env);
   c *= javaMultiplier * flinkMultiplier;
   
+  // Apply format and size multipliers
+  const formatMultiplier = getFormatMultiplier(env);
+  const sizePenalty = getSizePenalty(env);
+  c *= formatMultiplier * sizePenalty;
+  
   return c;
 }
 
@@ -75,6 +80,30 @@ function getFlinkMultiplier(env) {
   if (version >= 1.20) return 1.08;
   if (version >= 1.17) return 1.05;
   return 1.00;
+}
+
+/**
+ * Get record format CPU multiplier
+ */
+function getFormatMultiplier(env) {
+  const multipliers = {
+    json: 0.6,
+    avro: 1.0,
+    protobuf: 1.05,
+    binary: 1.15
+  };
+  return multipliers[env.recordFormat] || 1.0;
+}
+
+/**
+ * Get size penalty based on wire size of records
+ */
+function getSizePenalty(env) {
+  const bytes = env.recordWireSizeBytes || 1000;
+  if (bytes <= 1024) return 1.0;
+  if (bytes <= 10 * 1024) return 0.85;
+  if (bytes <= 100 * 1024) return 0.65;
+  return 0.5;
 }
 
 /**

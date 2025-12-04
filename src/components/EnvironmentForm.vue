@@ -134,6 +134,64 @@
         <strong>Estimated efficiency boost:</strong> {{ efficiencyDescription }}
       </div>
     </div>
+    
+    <div class="form-section">
+      <h3>Data Format & Record Size</h3>
+      
+      <div class="form-group">
+        <label>Record Format</label>
+        <select 
+          v-model="localEnv.recordFormat"
+          @change="updateEnvironment"
+        >
+          <option value="json">JSON</option>
+          <option value="avro">Avro (Recommended)</option>
+          <option value="protobuf">Protobuf</option>
+          <option value="binary">Binary / POJO / Kryo</option>
+        </select>
+        <span class="help-text">JSON: ~40% lower CPU throughput due to serialization overhead. Avro: baseline. Protobuf: slight advantage. Binary: most efficient if self-describing.</span>
+      </div>
+      
+      <div class="form-group">
+        <label>Wire Size (Kafka/Network, bytes)</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.recordWireSizeBytes"
+          @change="updateEnvironment"
+          min="1"
+        />
+        <span class="help-text">Average serialized record size on the wire. Used to calculate network bandwidth and state size impact. If unknown, use logical size estimate.</span>
+      </div>
+      
+      <div class="form-group">
+        <label>Logical Size (memory, bytes) — optional</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.recordLogicalSizeBytes"
+          @change="updateEnvironment"
+          min="1"
+        />
+        <span class="help-text">Average in-memory size of decoded objects. Mainly for reference. Wire size is used for capacity calculations.</span>
+      </div>
+      
+      <div class="form-group">
+        <label>Compression</label>
+        <select 
+          v-model="localEnv.compressionCodec"
+          @change="updateEnvironment"
+        >
+          <option value="none">None</option>
+          <option value="snappy">Snappy</option>
+          <option value="zstd">Zstd</option>
+          <option value="gzip">Gzip</option>
+        </select>
+        <span class="help-text">Network compression. Snappy: fast, moderate ratio. Zstd: better ratio, slightly slower. Gzip: best ratio, highest CPU overhead.</span>
+      </div>
+      
+      <div class="format-impact-info">
+        <strong>Record impact on capacity:</strong> {{ formatDescription }}
+      </div>
+    </div>
   </div>
 </template>
 
@@ -159,6 +217,28 @@ const efficiencyDescription = computed(() => {
   const totalGain = ((javaMultiplier * flinkMultiplier - 1) * 100).toFixed(0);
   
   return `Java ${localEnv.value.javaVersion}: +${javaGain}%, Flink ${localEnv.value.flinkVersion}: +${flinkGain}% → Total: +${totalGain}% capacity`;
+});
+
+const formatDescription = computed(() => {
+  const formatMultipliers = {
+    json: 0.6,
+    avro: 1.0,
+    protobuf: 1.05,
+    binary: 1.15
+  };
+  const formatMult = formatMultipliers[localEnv.value.recordFormat] || 1.0;
+  
+  const bytes = localEnv.value.recordWireSizeBytes;
+  let sizePenalty = 1.0;
+  if (bytes <= 1024) sizePenalty = 1.0;
+  else if (bytes <= 10 * 1024) sizePenalty = 0.85;
+  else if (bytes <= 100 * 1024) sizePenalty = 0.65;
+  else sizePenalty = 0.5;
+  
+  const combined = (formatMult * sizePenalty - 1) * 100;
+  const direction = combined >= 0 ? '+' : '';
+  
+  return `Format (${localEnv.value.recordFormat}): ${formatMult}x | Size (${bytes}B): ${sizePenalty}x penalty | Combined: ${direction}${combined.toFixed(0)}%`;
 });
 
 const updateEnvironment = () => {
@@ -247,5 +327,15 @@ h3 {
   border-radius: 4px;
   font-size: 14px;
   color: #2e7d32;
+}
+
+.format-impact-info {
+  margin-top: 10px;
+  padding: 12px;
+  background: #e3f2fd;
+  border-left: 4px solid #2196f3;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #1565c0;
 }
 </style>

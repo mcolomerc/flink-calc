@@ -11,7 +11,11 @@ export const useEnvironmentStore = defineStore('environment', {
     maxCheckpointDurationSec: 120,
     javaVersion: '17',
     flinkVersion: '1.20',
-    useEfficiencyAdjustments: true
+    useEfficiencyAdjustments: true,
+    recordWireSizeBytes: 1000,
+    recordLogicalSizeBytes: 1000,
+    recordFormat: 'avro',
+    compressionCodec: 'none'
   }),
   
   getters: {
@@ -44,6 +48,32 @@ export const useEnvironmentStore = defineStore('environment', {
       const flinkGain = ((state.flinkMultiplier - 1) * 100).toFixed(0);
       const totalGain = ((state.combinedEfficiencyMultiplier - 1) * 100).toFixed(0);
       return `Java ${state.javaVersion}: +${javaGain}%, Flink ${state.flinkVersion}: +${flinkGain}% → Total: +${totalGain}% capacity improvement`;
+    },
+    
+    formatMultiplier: (state) => {
+      const multipliers = {
+        json: 0.6,
+        avro: 1.0,
+        protobuf: 1.05,
+        binary: 1.15
+      };
+      return multipliers[state.recordFormat] || 1.0;
+    },
+    
+    sizePenalty: (state) => {
+      const bytes = state.recordWireSizeBytes;
+      if (bytes <= 1024) return 1.0;
+      if (bytes <= 10 * 1024) return 0.85;
+      if (bytes <= 100 * 1024) return 0.65;
+      return 0.5;
+    },
+    
+    formatDescription: (state) => {
+      const mult = state.formatMultiplier;
+      const penalty = state.sizePenalty;
+      const combined = ((mult * penalty - 1) * 100).toFixed(0);
+      const direction = combined >= 0 ? '+' : '';
+      return `Format (${state.recordFormat}): ${mult}x | Size penalty: ${penalty}x | Combined impact: ${direction}${combined}%`;
     }
   },
   
@@ -68,6 +98,10 @@ export const useEnvironmentStore = defineStore('environment', {
       this.javaVersion = '17';
       this.flinkVersion = '1.20';
       this.useEfficiencyAdjustments = true;
+      this.recordWireSizeBytes = 1000;
+      this.recordLogicalSizeBytes = 1000;
+      this.recordFormat = 'avro';
+      this.compressionCodec = 'none';
     }
   }
 });

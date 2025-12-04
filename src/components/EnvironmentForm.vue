@@ -85,12 +85,81 @@
         <span class="help-text">Maximum time allowed for a checkpoint to complete. Should be less than interval. Depends on state size.</span>
       </div>
     </div>
+    
+    <div class="form-section">
+      <h3>Runtime Versions</h3>
+      
+      <div class="form-group">
+        <label>Java Version</label>
+        <select 
+          v-model="localEnv.javaVersion"
+          @change="updateEnvironment"
+        >
+          <option value="11">Java 11</option>
+          <option value="17">Java 17 (Recommended)</option>
+          <option value="21">Java 21</option>
+        </select>
+        <span class="help-text">Java 17 typically provides ~5% better throughput. Java 21 offers ~6% improvement but is experimental in Flink.</span>
+      </div>
+      
+      <div class="form-group">
+        <label>Flink Version</label>
+        <select 
+          v-model="localEnv.flinkVersion"
+          @change="updateEnvironment"
+        >
+          <option value="1.16">Flink 1.16</option>
+          <option value="1.17">Flink 1.17</option>
+          <option value="1.18">Flink 1.18</option>
+          <option value="1.19">Flink 1.19</option>
+          <option value="1.20">Flink 1.20 (Recommended)</option>
+          <option value="2.0">Flink 2.0</option>
+        </select>
+        <span class="help-text">Newer Flink versions include runtime optimizations. Flink 1.20: +8%, Flink 2.0: +10% typical efficiency gains.</span>
+      </div>
+      
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input 
+            type="checkbox" 
+            v-model="localEnv.useEfficiencyAdjustments"
+            @change="updateEnvironment"
+          />
+          Use version efficiency adjustments
+        </label>
+        <span class="help-text">Apply runtime efficiency multipliers based on Java and Flink versions. Disable to use baseline (Java 11 / Flink 1.16) capacity.</span>
+      </div>
+      
+      <div v-if="localEnv.useEfficiencyAdjustments" class="efficiency-info">
+        <strong>Estimated efficiency boost:</strong> {{ efficiencyDescription }}
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import { useEnvironmentStore } from '@/stores/environment';
+
+const envStore = useEnvironmentStore();
+const localEnv = ref({ ...envStore.$state });
+
+const efficiencyDescription = computed(() => {
+  const javaMultipliers = { '11': 1.00, '17': 1.05, '21': 1.06 };
+  const javaMultiplier = javaMultipliers[localEnv.value.javaVersion] || 1.00;
+  const javaGain = ((javaMultiplier - 1) * 100).toFixed(0);
+  
+  const version = parseFloat(localEnv.value.flinkVersion);
+  let flinkMultiplier = 1.00;
+  if (version >= 2.0) flinkMultiplier = 1.10;
+  else if (version >= 1.20) flinkMultiplier = 1.08;
+  else if (version >= 1.17) flinkMultiplier = 1.05;
+  const flinkGain = ((flinkMultiplier - 1) * 100).toFixed(0);
+  
+  const totalGain = ((javaMultiplier * flinkMultiplier - 1) * 100).toFixed(0);
+  
+  return `Java ${localEnv.value.javaVersion}: +${javaGain}%, Flink ${localEnv.value.flinkVersion}: +${flinkGain}% → Total: +${totalGain}% capacity`;
+});
 
 const envStore = useEnvironmentStore();
 const localEnv = ref({ ...envStore.$state });
@@ -157,5 +226,29 @@ h3 {
   margin-top: 5px;
   font-size: 12px;
   color: #7f8c8d;
+}
+
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #555;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: auto;
+  cursor: pointer;
+}
+
+.efficiency-info {
+  margin-top: 10px;
+  padding: 12px;
+  background: #e8f5e9;
+  border-left: 4px solid #4caf50;
+  border-radius: 4px;
+  font-size: 14px;
+  color: #2e7d32;
 }
 </style>

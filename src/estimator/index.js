@@ -44,7 +44,37 @@ export function capacityFor(op, env) {
     c *= 0.8;
   }
   
+  // Apply Java and Flink efficiency multipliers
+  const javaMultiplier = getJavaMultiplier(env);
+  const flinkMultiplier = getFlinkMultiplier(env);
+  c *= javaMultiplier * flinkMultiplier;
+  
   return c;
+}
+
+/**
+ * Get Java version efficiency multiplier
+ */
+function getJavaMultiplier(env) {
+  if (!env.useEfficiencyAdjustments) return 1.0;
+  const multipliers = {
+    '11': 1.00,
+    '17': 1.05,
+    '21': 1.06
+  };
+  return multipliers[env.javaVersion] || 1.00;
+}
+
+/**
+ * Get Flink version efficiency multiplier
+ */
+function getFlinkMultiplier(env) {
+  if (!env.useEfficiencyAdjustments) return 1.0;
+  const version = parseFloat(env.flinkVersion);
+  if (version >= 2.0) return 1.10;
+  if (version >= 1.20) return 1.08;
+  if (version >= 1.17) return 1.05;
+  return 1.00;
 }
 
 /**

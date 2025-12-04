@@ -2,11 +2,11 @@
   <div class="results-view">
     <div class="results-header">
       <h2>Estimation Results</h2>
-      <button @click="compute" class="btn-primary">Calculate</button>
+      <button @click="compute" class="btn-primary">Recalculate</button>
     </div>
     
     <div v-if="!hasResult" class="empty-state">
-      <p>Configure your workload, environment, and topology, then click Calculate.</p>
+      <p>Calculating your infrastructure estimate...</p>
     </div>
     
     <div v-else class="results-content">
@@ -230,7 +230,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useEstimateStore } from '@/stores/estimate';
 import DAGCanvas from './DAGCanvas.vue';
 
@@ -241,6 +241,11 @@ const result = computed(() => estimateStore.result);
 const conservativeResult = computed(() => estimateStore.conservativeResult);
 const confidence = computed(() => estimateStore.confidence);
 const confidenceLevel = computed(() => estimateStore.confidenceLevel);
+
+// Automatically compute results when component is mounted
+onMounted(() => {
+  estimateStore.compute();
+});
 
 const compute = () => {
   estimateStore.compute();

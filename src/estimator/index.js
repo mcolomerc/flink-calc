@@ -296,6 +296,156 @@ function flip49MemorySplit(env) {
 }
 
 /**
+ * Estimate checkpoint I/O characteristics
+ * Returns checkpoint data volume and required throughput
+ */
+export function estimateCheckpointIO(graph, Ps, env) {
+  const checkpointMetrics = {
+    statefulOperators: [],
+    totalStateGiB: 0,
+    estimatedCheckpointDurationSec: 0,
+    estimatedCheckpointThroughputMBps: 0,
+    estimatedCheckpointDataGiB: 0,
+    rocksDbPenalty: 0,
+    warnings: []
+  };
+  
+  // Ensure operators is an array
+  if (!graph?.operators || !Array.isArray(graph.operators)) {
+    return checkpointMetrics;
+  }
+  
+  // Analyze each stateful operator
+  for (const op of graph.operators) {
+    if (!op.stateful) {
+      continue;
+    }
+    
+    const P = Ps[op.id];
+    
+    // Validate inputs before processing
+    if (!P || P <= 0) {
+      continue;
+    }
+    
+    if (!op.keys || op.keys <= 0 || !op.bytesPerKey || op.bytesPerKey <= 0) {
+      // Process with incomplete state data
+    }
+    
+    const stateGiB = statePerSubtaskGiB(op, P, env);
+    const totalOpStateGiB = stateGiB * P;
+    
+    checkpointMetrics.totalStateGiB += totalOpStateGiB;
+    
+    const operatorData = {
+      id: op.id,
+      name: op.name,
+      parallelism: P,
+      statePerSubtaskGiB: parseFloat(stateGiB.toFixed(3)),
+      totalStateGiB: parseFloat(totalOpStateGiB.toFixed(3)),
+      keys: op.keys,
+      bytesPerKey: op.bytesPerKey,
+      stateBackend: env.stateBackend,
+      isConfigured: !!(op.keys && op.bytesPerKey && op.keys > 0 && op.bytesPerKey > 0)
+    };
+    
+    checkpointMetrics.statefulOperators.push(operatorData);
+  }
+  
+  // Estimate checkpoint data volume
+  let checkpointDataGiB = checkpointMetrics.totalStateGiB;
+  
+  // RocksDB includes write amplification and metadata overhead
+  if (env.stateBackend === 'rocksdb') {
+    // RocksDB write amplification factor (typically 1.1x-1.3x)
+    const writeAmplification = 1.2;
+    // Metadata and manifest files overhead (~5%)
+    const metadataOverhead = 1.05;
+    checkpointDataGiB *= writeAmplification * metadataOverhead;
+    checkpointMetrics.rocksDbPenalty = parseFloat(((writeAmplification * metadataOverhead - 1) * 100).toFixed(1));
+  }
+  
+  checkpointMetrics.estimatedCheckpointDataGiB = parseFloat(checkpointDataGiB.toFixed(2));
+  
+  // Calculate checkpoint duration based on I/O throughput
+  // Assume typical I/O throughput (MB/s)
+  const ioThroughputMBps = env.checkpointIOThroughputMBps || getDefaultIOThroughput(env);
+  
+  if (ioThroughputMBps > 0) {
+    const checkpointDataMB = checkpointDataGiB * 1024;
+    checkpointMetrics.estimatedCheckpointDurationSec = 
+      parseFloat((checkpointDataMB / ioThroughputMBps).toFixed(1));
+    checkpointMetrics.estimatedCheckpointThroughputMBps = ioThroughputMBps;
+  }
+  
+  // Generate warnings
+  if (checkpointMetrics.estimatedCheckpointDurationSec > env.maxCheckpointDurationSec) {
+    checkpointMetrics.warnings.push({
+      type: 'error',
+      message: `Checkpoint duration (${checkpointMetrics.estimatedCheckpointDurationSec.toFixed(0)}s) exceeds max allowed (${env.maxCheckpointDurationSec}s). Consider increasing I/O throughput or reducing state size.`
+    });
+  }
+  
+  if (env.checkpointIntervalSec > 0 && checkpointMetrics.estimatedCheckpointDurationSec > 0) {
+    const minInterval = checkpointMetrics.estimatedCheckpointDurationSec * 2;
+    if (env.checkpointIntervalSec < minInterval) {
+      checkpointMetrics.warnings.push({
+        type: 'warning',
+        message: `Checkpoint interval (${env.checkpointIntervalSec}s) should be at least 2x estimated duration (${minInterval.toFixed(0)}s) to avoid cascading checkpoints.`
+      });
+    }
+  }
+  
+  // Warn about RocksDB overhead if significant
+  if (env.stateBackend === 'rocksdb' && checkpointMetrics.rocksDbPenalty > 10) {
+    checkpointMetrics.warnings.push({
+      type: 'info',
+      message: `RocksDB adds ~${checkpointMetrics.rocksDbPenalty.toFixed(1)}% overhead to checkpoint data volume due to write amplification.`
+    });
+  }
+  
+  // Return a completely new object to ensure reactivity
+  return {
+    statefulOperators: [...checkpointMetrics.statefulOperators],
+    totalStateGiB: checkpointMetrics.totalStateGiB,
+    estimatedCheckpointDurationSec: checkpointMetrics.estimatedCheckpointDurationSec,
+    estimatedCheckpointThroughputMBps: checkpointMetrics.estimatedCheckpointThroughputMBps,
+    estimatedCheckpointDataGiB: checkpointMetrics.estimatedCheckpointDataGiB,
+    rocksDbPenalty: checkpointMetrics.rocksDbPenalty,
+    warnings: [...checkpointMetrics.warnings]
+  };
+}
+
+/**
+ * Get default I/O throughput based on storage backend and deployment
+ */
+function getDefaultIOThroughput(env) {
+  // Default throughput values in MB/s based on backend and deployment
+  const defaultThroughput = {
+    's3': { 'aws': 100, 'other': 80 },
+    'hdfs': { 'default': 150 },
+    'nfs': { 'default': 200 },
+    'local': { 'default': 400 },
+    'disk': { 'default': 350 }
+  };
+  
+  const backend = env.checkpointStorageBackend || 's3';
+  const deployment = env.checkpointDeployment || 'aws';
+  
+  if (backend === 's3') {
+    return defaultThroughput.s3[deployment] || 80;
+  } else if (backend === 'hdfs') {
+    return defaultThroughput.hdfs.default;
+  } else if (backend === 'nfs') {
+    return defaultThroughput.nfs.default;
+  } else if (backend === 'local') {
+    return defaultThroughput.local.default;
+  }
+  
+  return 150; // Conservative default
+}
+
+/**
  * Build warnings based on estimates
  */
 function buildWarnings(graph, Ps, rIn, split, env) {
@@ -379,6 +529,9 @@ function buildBoM(Ps, rIn, totalSlots, numTMs, split, env, warnings, graph) {
     };
   });
   
+  // Add checkpoint I/O estimation
+  const checkpointIO = estimateCheckpointIO(graph, Ps, env);
+  
   return {
     jobManager: {
       count: 1,
@@ -398,6 +551,7 @@ function buildBoM(Ps, rIn, totalSlots, numTMs, split, env, warnings, graph) {
       slots: numTMs * env.slotsPerTM
     },
     operatorDetails,
+    checkpointIO,
     warnings,
     confidence: calculateConfidence(graph, Ps)
   };

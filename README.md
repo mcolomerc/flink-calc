@@ -20,6 +20,13 @@ A Vue 3 webapp that estimates Apache Flink infrastructure requirements and gener
 - Per-operator parallelism calculation
 - State memory estimation for stateful operators
 - Memory split recommendation (heap/managed/network/overhead)
+- **Checkpoint I/O & Storage Throughput Analysis** 
+  - Automatic state volume calculation
+  - RocksDB overhead estimation (write amplification + metadata)
+  - Checkpoint duration estimation
+  - Storage backend throughput assumptions (S3, HDFS, NFS, local)
+  - Configuration recommendations (interval, max duration)
+  - RocksDB-specific guidance (compaction, incremental checkpoints)
 - Checkpoint sanity checks
 - Warning system for potential bottlenecks
 - Confidence scoring
@@ -68,58 +75,6 @@ npm run preview
    - Review parallelism recommendations
    - Export BoM or Flink config
 
- 
-
-## Data Model
-
-### Workload
-```javascript
-{
-  inputRateAvg: 50000,      // records/sec
-  inputRatePeak: 120000,    // records/sec
-  burstFactor: 2.4,         // peak/avg
-  latencyTargetMs: 2000,    // p95 target
-  catchUpMinutes: 15,       // backlog recovery time
-  headroom: 1.5             // safety multiplier
-}
-```
-
-### Environment
-```javascript
-{
-  slotsPerTM: 4,
-  coresPerTM: 4,
-  tmProcessMemoryGiB: 16,
-  jmProcessMemoryGiB: 4,
-  stateBackend: 'rocksdb',
-  checkpointIntervalSec: 300,
-  maxCheckpointDurationSec: 120
-}
-```
-
-### Operator
-```javascript
-{
-  id: 'op-1',
-  name: 'Window Aggregation',
-  type: 'window_agg',
-  stateful: true,
-  inputRatio: 1.0,           // output/input ratio
-  costClass: 'medium',       // low/medium/high
-  userCapacityOverride: null, // optional override
-  
-  // State configuration (if stateful)
-  keys: 1_000_000,
-  bytesPerKey: 512,
-  windowSizeSec: 300,
-  ttlSec: 3600,
-  
-  // Shuffle behavior
-  keyBy: true,
-  repartition: 'hash'
-}
-```
-
 ## Estimation Algorithm
 
 ### 1. Capacity Calculation
@@ -167,6 +122,31 @@ M_state = (keys × bytesPerKey × TTL_factor) / parallelism
   - Managed: 25-50% (higher for stateful)
   - Heap: remainder
 
+### 6. Checkpoint I/O & Storage Analysis
+
+For each stateful operator:
+```
+State per subtask = (keys × bytesPerKey × TTL_factor) / parallelism
+Total state = Σ(State per subtask × parallelism) across all operators
+```
+
+RocksDB overhead:
+```
+Checkpoint data = Total state × 1.2 (write amplification) × 1.05 (metadata)
+                = Total state × 1.26 (for RocksDB)
+```
+
+Checkpoint duration:
+```
+Duration = Checkpoint data (GiB) × 1024 MB / Throughput (MB/s)
+```
+
+Configuration validation:
+```
+Min checkpoint interval ≥ 2 × Duration (avoid cascading)
+Max checkpoint duration ≥ 1.5 × Duration (safety margin)
+```
+
 ## Operator Types
 
 | Type | Description | Default Capacity |
@@ -205,6 +185,37 @@ Ready-to-use `flink-conf.yaml` with:
 - State backend
 - Checkpoint configuration
 
+## Checkpoint I/O Analysis
+
+The calculator now provides comprehensive checkpoint I/O analysis:
+
+**Key Metrics:**
+- **Total State Size**: Sum of state across all stateful operators
+- **Checkpoint Data Volume**: Accounts for RocksDB write amplification (1.2x) and metadata overhead (1.05x)
+- **Checkpoint Duration**: Estimated time to write checkpoint based on storage throughput
+- **Required Throughput**: Minimum I/O rate needed to meet checkpoint SLA
+
+**Storage Backend Support:**
+- **S3 / Object Storage**: 80-100 MB/s (auto-detect for AWS)
+- **HDFS**: 150 MB/s
+- **NFS**: 200 MB/s  
+- **Local Disk**: 400 MB/s
+- **SSD**: 350 MB/s
+- **Custom**: Override with measured throughput
+
+**RocksDB-Specific Guidance:**
+- Write amplification explanation
+- Block cache sizing recommendations
+- Compaction considerations
+- Incremental checkpoint benefits (50-90% data reduction)
+
+**Configuration Recommendations:**
+- Minimum checkpoint interval (2x duration to avoid cascading)
+- Recommended storage backend (by checkpoint size)
+- Recommended max checkpoint duration (safety margins)
+
+**See also**: [Checkpoint I/O Estimation Guide](./CHECKPOINT_IO_FEATURE_GUIDE.md) for detailed usage.
+
 ## Confidence Scoring
 
 The app provides a confidence score based on:
@@ -226,6 +237,7 @@ Levels:
 5. **Review warnings** - they highlight potential issues
 6. **Compare typical vs conservative** estimates
 7. **Iterate with real metrics** once deployed
+8. **Validate checkpoint settings** - use I/O analysis recommendations
 
 ## Sample Topology
 

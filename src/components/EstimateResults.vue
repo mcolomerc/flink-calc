@@ -122,6 +122,9 @@
         </table>
       </div>
       
+      <!-- Checkpoint I/O Analysis -->
+      <CheckpointIOResults :key="result?.checkpointIO ? 'with-data' : 'no-data'" :checkpoint-io="result?.checkpointIO" />
+      
       <!-- Configuration Summary -->
       <div class="config-summary">
         <h3>Configuration</h3>
@@ -268,19 +271,25 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue';
+import { computed, onMounted, watch } from 'vue';
 import { useEstimateStore } from '@/stores/estimate';
 import { useEnvironmentStore } from '@/stores/environment';
+import { useGraphStore } from '@/stores/graph';
 import DAGCanvas from './DAGCanvas.vue';
+import CheckpointIOResults from './CheckpointIOResults.vue';
 
 const estimateStore = useEstimateStore();
 const envStore = useEnvironmentStore();
+const graphStore = useGraphStore();
 
 const hasResult = computed(() => estimateStore.hasResult);
 const result = computed(() => estimateStore.result);
 const conservativeResult = computed(() => estimateStore.conservativeResult);
 const confidence = computed(() => estimateStore.confidence);
 const confidenceLevel = computed(() => estimateStore.confidenceLevel);
+
+// Create a computed property for checkpointIO to ensure reactivity
+const checkpointIO = computed(() => result.value?.checkpointIO);
 
 const flinkConfigPreview = computed(() => {
   return estimateStore.exportFlinkConfig();
@@ -290,6 +299,14 @@ const flinkConfigPreview = computed(() => {
 onMounted(() => {
   estimateStore.compute();
 });
+
+// Recompute when graph changes
+watch(() => graphStore.operators, (newOps) => {
+  if (newOps && newOps.length > 0) {
+    console.log('[EstimateResults] Graph operators changed, recomputing...');
+    estimateStore.compute();
+  }
+}, { deep: false });
 
 const compute = () => {
   estimateStore.compute();

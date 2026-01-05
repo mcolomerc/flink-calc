@@ -55,6 +55,14 @@ export const useEstimateStore = defineStore('estimate', {
         chainableFlags: graphStore.chainableFlags
       };
       
+      console.log('[estimateStore.compute] Graph operators:', graph.operators.map(op => ({
+        id: op.id,
+        name: op.name,
+        stateful: op.stateful,
+        keys: op.keys,
+        bytesPerKey: op.bytesPerKey
+      })));
+      
       this.result = estimate(workload, env, graph);
       this.conservativeResult = estimateConservative(workload, env, graph);
       this.lastUpdated = new Date();

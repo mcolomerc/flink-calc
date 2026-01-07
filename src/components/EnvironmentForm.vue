@@ -87,6 +87,49 @@
     </div>
     
     <div class="form-section">
+      <h3>Checkpoint I/O & Storage</h3>
+      
+      <div class="form-group">
+        <label>Storage Backend</label>
+        <select 
+          v-model="localEnv.checkpointStorageBackend"
+          @change="updateEnvironment"
+        >
+          <option value="s3">S3 / Object Storage</option>
+          <option value="hdfs">HDFS</option>
+          <option value="nfs">NFS</option>
+          <option value="local">Local Disk</option>
+          <option value="disk">Fast SSD Disk</option>
+        </select>
+        <span class="help-text">Checkpoint storage backend. Affects throughput assumptions. S3: ~80-100 MB/s, HDFS: ~150 MB/s, Local: ~350-400 MB/s</span>
+      </div>
+      
+      <div v-if="localEnv.checkpointStorageBackend === 's3'" class="form-group">
+        <label>Cloud Provider (for S3 timing)</label>
+        <select 
+          v-model="localEnv.checkpointDeployment"
+          @change="updateEnvironment"
+        >
+          <option value="aws">AWS S3</option>
+          <option value="other">Other Cloud / On-Prem</option>
+        </select>
+        <span class="help-text">AWS S3 vs other providers affects latency assumptions. On-prem S3 is slightly slower.</span>
+      </div>
+      
+      <div class="form-group">
+        <label>I/O Throughput (MB/s) — optional</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.checkpointIOThroughputMBps"
+          @change="updateEnvironment"
+          min="1"
+          placeholder="Leave blank for auto-detect"
+        />
+        <span class="help-text">Measured checkpoint write throughput. Leave blank to auto-detect based on backend. Used to estimate checkpoint duration.</span>
+      </div>
+    </div>
+    
+    <div class="form-section">
       <h3>Runtime Versions</h3>
       
       <div class="form-group">

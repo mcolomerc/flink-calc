@@ -29,7 +29,11 @@ export const useEnvironmentStore = defineStore('environment', {
     flip49MetaspaceSize: 96, // MiB
     flip49DirectMemoryCap: 512, // MiB
     flip49HeapCutoffMin: 1024, // MiB
-    flip49HeapCutoffRatio: 0.8
+    flip49HeapCutoffRatio: 0.8,
+    // Checkpoint I/O configuration
+    checkpointStorageBackend: 's3', // 's3', 'hdfs', 'nfs', 'local', 'disk'
+    checkpointDeployment: 'aws', // 'aws', 'other' for S3 timing
+    checkpointIOThroughputMBps: null // null = auto-detect based on backend
   }),
   
   getters: {
@@ -129,6 +133,9 @@ export const useEnvironmentStore = defineStore('environment', {
       this.flip49DirectMemoryCap = 512;
       this.flip49HeapCutoffMin = 1024;
       this.flip49HeapCutoffRatio = 0.8;
+      this.checkpointStorageBackend = 's3';
+      this.checkpointDeployment = 'aws';
+      this.checkpointIOThroughputMBps = null;
     }
   }
 });

@@ -88,6 +88,53 @@
         </div>
       </div>
       
+      <!-- Source Constraints & Skew Modeling -->
+      <div v-if="envStore.maxSourceParallelism || envStore.enableSkewModeling || (envStore.enableRocksdbOverheadModeling && envStore.stateBackend === 'rocksdb')" class="constraints-section">
+        <h3>Parallelism Constraints & Overhead Modeling</h3>
+        
+        <div v-if="envStore.maxSourceParallelism" class="constraint-info">
+          <div class="constraint-header">
+            <span class="constraint-icon">🔗</span>
+            <div>
+              <h4>Source Parallelism Constraint</h4>
+              <p>{{ envStore.sourceConstraintDescription }}</p>
+            </div>
+          </div>
+          <div class="constraint-impact">
+            <p><strong>Impact:</strong> Limits maximum parallelism for all operators to {{ envStore.maxSourceParallelism }}</p>
+          </div>
+        </div>
+        
+        <div v-if="envStore.enableSkewModeling" class="constraint-info">
+          <div class="constraint-header">
+            <span class="constraint-icon">⚖️</span>
+            <div>
+              <h4>Advanced Skew Modeling</h4>
+              <p>{{ envStore.skewDescription }}</p>
+            </div>
+          </div>
+          <div class="constraint-impact">
+            <p><strong>Skew Factor:</strong> {{ envStore.skewFactor }}x (p95 hot key concentration)</p>
+            <p><strong>Impact:</strong> Increases required parallelism for keyBy operations by {{ ((1/envStore.effectiveKeyByMultiplier - 1) * 100).toFixed(0) }}%</p>
+          </div>
+        </div>
+        
+        <div v-if="envStore.enableRocksdbOverheadModeling && envStore.stateBackend === 'rocksdb'" class="constraint-info">
+          <div class="constraint-header">
+            <span class="constraint-icon">💾</span>
+            <div>
+              <h4>RocksDB State Overhead Modeling</h4>
+              <p>{{ envStore.rocksdbOverheadDescription }}</p>
+            </div>
+          </div>
+          <div class="constraint-impact">
+            <p><strong>Total Overhead:</strong> {{ envStore.rocksdbTotalOverheadMultiplier.toFixed(2) }}x ({{ ((envStore.rocksdbTotalOverheadMultiplier - 1) * 100).toFixed(0) }}% increase)</p>
+            <p><strong>Components:</strong> Index {{ envStore.rocksdbIndexMultiplier }}x × Compaction {{ envStore.rocksdbCompactionMultiplier }}x × Metadata {{ envStore.rocksdbMetadataMultiplier }}x</p>
+            <p><strong>Compression:</strong> {{ envStore.rocksdbCompressionType }} (affects space efficiency)</p>
+          </div>
+        </div>
+      </div>
+      
       <!-- Operator Details Table -->
       <div class="operators-table">
         <h3>Operator Parallelism</h3>
@@ -865,6 +912,76 @@ tbody tr:hover {
   border-radius: 8px;
   margin-bottom: 30px;
   border-left: 4px solid #27ae60;
+}
+
+.constraints-section {
+  background: white;
+  border: 1px solid #e0e4e8;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 30px;
+}
+
+.constraints-section h3 {
+  margin: 0 0 20px 0;
+  color: #24292e;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.constraint-info {
+  background: #f8f9fa;
+  border: 1px solid #e1e4e8;
+  border-radius: 6px;
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.constraint-info:last-child {
+  margin-bottom: 0;
+}
+
+.constraint-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.constraint-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.constraint-header h4 {
+  margin: 0 0 4px 0;
+  color: #24292e;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.constraint-header p {
+  margin: 0;
+  color: #586069;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.constraint-impact {
+  background: white;
+  padding: 12px;
+  border-radius: 4px;
+  border-left: 3px solid #0366d6;
+}
+
+.constraint-impact p {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  color: #24292e;
+}
+
+.constraint-impact p:last-child {
+  margin-bottom: 0;
 }
 
 .flink-config-header {

@@ -43,7 +43,15 @@ export function capacityFor(op, env) {
   
   // KeyBy skew risk
   if (op.keyBy) {
-    c *= 0.8;
+    if (env.enableSkewModeling) {
+      // Advanced skew modeling
+      const basePenalty = env.keyByMultiplier;
+      const skewPenalty = Math.max(1.0, env.skewFactor / 1.5); // Normalize skew impact
+      c *= basePenalty * skewPenalty;
+    } else {
+      // Legacy flat penalty
+      c *= env.keyByMultiplier;
+    }
   }
   
   // Apply Java and Flink efficiency multipliers
@@ -180,7 +188,34 @@ export function computeRates(graph, workload) {
  */
 export function parallelismFor(op, rIn, workload, env) {
   const c = capacityFor(op, env);
-  return Math.max(1, Math.ceil((rIn / c) * workload.headroom));
+  let P = Math.max(1, Math.ceil((rIn / c) * workload.headroom));
+  
+  // Apply source constraints (e.g., Kafka partitions)
+  if (env.maxSourceParallelism && op.type === 'source') {
+    P = Math.min(P, env.maxSourceParallelism);
+  }
+  
+  // Propagate source constraints downstream
+  if (env.maxSourceParallelism && op.type !== 'source') {
+    // Find the maximum parallelism from upstream sources
+    const upstreamMax = findUpstreamSourceMaxParallelism(op, env);
+    if (upstreamMax) {
+      P = Math.min(P, upstreamMax);
+    }
+  }
+  
+  return P;
+}
+
+/**
+ * Find the maximum source parallelism constraint from upstream operators
+ */
+function findUpstreamSourceMaxParallelism(op, env) {
+  if (!env.maxSourceParallelism) return null;
+  
+  // For now, apply the same constraint to all downstream operators
+  // In a more complex implementation, we could trace the actual DAG
+  return env.maxSourceParallelism;
 }
 
 /**
@@ -200,7 +235,31 @@ export function statePerSubtaskGiB(op, P, env) {
   const totalBytes = op.keys * op.bytesPerKey * factor;
   const perSubtaskBytes = totalBytes / P;
   
-  return perSubtaskBytes / (1024 ** 3);
+  let baseStateGiB = perSubtaskBytes / (1024 ** 3);
+  
+  // Apply RocksDB overhead modeling if enabled
+  if (env.stateBackend === 'rocksdb' && env.enableRocksdbOverheadModeling) {
+    // Combine all overhead multipliers
+    const indexOverhead = env.rocksdbIndexMultiplier;
+    const compactionOverhead = env.rocksdbCompactionMultiplier;
+    const metadataOverhead = env.rocksdbMetadataMultiplier;
+    
+    // Compression type affects overhead
+    const compressionMultipliers = {
+      'none': 1.0,
+      'snappy': 1.0,
+      'zlib': 0.9, // better compression = less space but more CPU
+      'lz4': 0.95,
+      'bzip2': 0.85
+    };
+    const compressionMultiplier = compressionMultipliers[env.rocksdbCompressionType] || 1.0;
+    
+    // Apply all overhead factors
+    const totalOverhead = indexOverhead * compactionOverhead * metadataOverhead * compressionMultiplier;
+    baseStateGiB *= totalOverhead;
+  }
+  
+  return baseStateGiB;
 }
 
 /**

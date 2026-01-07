@@ -130,6 +130,148 @@
     </div>
     
     <div class="form-section">
+      <h3>Source Constraints</h3>
+      
+      <div class="form-group">
+        <label>Max Source Parallelism</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.maxSourceParallelism"
+          @change="updateEnvironment"
+          min="1"
+          placeholder="Unlimited"
+        />
+        <span class="help-text">Maximum parallelism for source operators (e.g., Kafka partitions). Leave blank for unlimited. This constraint propagates downstream.</span>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h3>Skew Modeling</h3>
+      
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input 
+            type="checkbox" 
+            v-model="localEnv.enableSkewModeling"
+            @change="updateEnvironment"
+          />
+          Enable Advanced Skew Modeling
+        </label>
+        <span class="help-text">Model data skew beyond flat keyBy penalty. More realistic for hot-key scenarios.</span>
+      </div>
+      
+      <div v-if="localEnv.enableSkewModeling" class="form-group">
+        <label>Skew Factor (p95 hot key share)</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.skewFactor"
+          @change="updateEnvironment"
+          min="1.0"
+          max="10.0"
+          step="0.1"
+        />
+        <span class="help-text">Hot key concentration factor. 1.0 = no skew, 2.0 = 2x skew, 3.0 = 3x skew. Higher values increase required parallelism for keyBy operations.</span>
+      </div>
+      
+      <div v-if="!localEnv.enableSkewModeling" class="form-group">
+        <label>Legacy KeyBy Multiplier</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.keyByMultiplier"
+          @change="updateEnvironment"
+          min="0.1"
+          max="1.0"
+          step="0.1"
+        />
+        <span class="help-text">Flat penalty for keyBy operations (legacy mode). 0.8 = 20% capacity reduction for potential skew.</span>
+      </div>
+    </div>
+    
+    <div class="form-section">
+      <h3>RocksDB State Overhead Modeling</h3>
+      
+      <div class="form-group">
+        <label class="checkbox-label">
+          <input 
+            type="checkbox" 
+            v-model="localEnv.enableRocksdbOverheadModeling"
+            @change="updateEnvironment"
+            :disabled="localEnv.stateBackend !== 'rocksdb'"
+          />
+          Enable Detailed RocksDB Overhead Modeling
+        </label>
+        <span class="help-text">Model RocksDB-specific overhead beyond simple state size. Only applies when RocksDB is selected as state backend.</span>
+      </div>
+      
+      <div v-if="localEnv.enableRocksdbOverheadModeling && localEnv.stateBackend === 'rocksdb'" class="form-group">
+        <label>Index Overhead Multiplier</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.rocksdbIndexMultiplier"
+          @change="updateEnvironment"
+          min="1.0"
+          max="3.0"
+          step="0.1"
+        />
+        <span class="help-text">RocksDB index overhead (typically 1.1-1.5). Accounts for memory used by block indexes, bloom filters, and other index structures.</span>
+      </div>
+      
+      <div v-if="localEnv.enableRocksdbOverheadModeling && localEnv.stateBackend === 'rocksdb'" class="form-group">
+        <label>Compaction Amplification Multiplier</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.rocksdbCompactionMultiplier"
+          @change="updateEnvironment"
+          min="1.0"
+          max="3.0"
+          step="0.1"
+        />
+        <span class="help-text">Compaction amplification (typically 1.2-1.8). Accounts for temporary space usage during SST file compaction.</span>
+      </div>
+      
+      <div v-if="localEnv.enableRocksdbOverheadModeling && localEnv.stateBackend === 'rocksdb'" class="form-group">
+        <label>Metadata Overhead Multiplier</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.rocksdbMetadataMultiplier"
+          @change="updateEnvironment"
+          min="1.0"
+          max="2.0"
+          step="0.05"
+        />
+        <span class="help-text">Metadata overhead (typically 1.05-1.15). Accounts for WAL, manifest files, and other RocksDB metadata.</span>
+      </div>
+      
+      <div v-if="localEnv.enableRocksdbOverheadModeling && localEnv.stateBackend === 'rocksdb'" class="form-group">
+        <label>Compression Type</label>
+        <select 
+          v-model="localEnv.rocksdbCompressionType"
+          @change="updateEnvironment"
+        >
+          <option value="none">None</option>
+          <option value="snappy">Snappy (Recommended)</option>
+          <option value="lz4">LZ4</option>
+          <option value="zlib">Zlib</option>
+          <option value="bzip2">Bzip2</option>
+        </select>
+        <span class="help-text">Compression type affects space overhead and CPU usage. Snappy provides good balance.</span>
+      </div>
+      
+      <div v-if="localEnv.enableRocksdbOverheadModeling && localEnv.stateBackend === 'rocksdb'" class="form-group">
+        <label>Block Size (KB)</label>
+        <input 
+          type="number" 
+          v-model.number="localEnv.rocksdbBlockSizeKB"
+          @change="updateEnvironment"
+          min="1"
+          max="64"
+          step="1"
+        />
+        <span class="help-text">SST block size in KB. Larger blocks reduce index overhead but increase read amplification.</span>
+      </div>
+    </div>
+    
+    <div class="form-section">
       <h3>Runtime Versions</h3>
       
       <div class="form-group">

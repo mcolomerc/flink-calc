@@ -20,6 +20,17 @@ A Vue 3 webapp that estimates Apache Flink infrastructure requirements and gener
 - Per-operator parallelism calculation
 - State memory estimation for stateful operators
 - Memory split recommendation (heap/managed/network/overhead)
+- **Source Constraints & Skew Modeling** ✨ NEW
+  - Max source parallelism constraints (e.g., Kafka partitions)
+  - Advanced skew modeling beyond flat keyBy penalties
+  - Skew factor configuration (p95 hot key concentration)
+  - Constraint propagation through downstream operators
+- **RocksDB State Overhead Modeling** ✨ NEW
+  - Configurable index overhead multiplier (1.1-1.5x typical)
+  - Compaction amplification modeling (1.2-1.8x typical)
+  - Metadata overhead calculation (1.05-1.15x typical)
+  - Compression type impact on space efficiency
+  - Block size optimization for index vs read amplification trade-offs
 - **Checkpoint I/O & Storage Throughput Analysis** 
   - Automatic state volume calculation
   - RocksDB overhead estimation (write amplification + metadata)
@@ -104,6 +115,18 @@ rate_out = rate_in × inputRatio
 
 ```
 P_i = ceil((rate_in / capacity) × headroom)
+```
+
+**Source Constraints:**
+```
+P_source = min(P_calculated, max_source_parallelism)
+P_downstream = min(P_calculated, max_source_parallelism)
+```
+
+**Skew Modeling:**
+```
+Legacy: capacity_adjusted = capacity × keyBy_multiplier
+Advanced: capacity_adjusted = capacity × keyBy_multiplier × (skew_factor / 1.5)
 ```
 
 ### 4. State Memory Estimation
@@ -215,6 +238,82 @@ The calculator now provides comprehensive checkpoint I/O analysis:
 - Recommended max checkpoint duration (safety margins)
 
 **See also**: [Checkpoint I/O Estimation Guide](./CHECKPOINT_IO_FEATURE_GUIDE.md) for detailed usage.
+
+## Source Constraints & Skew Modeling
+
+The calculator now provides advanced parallelism constraints and realistic skew modeling:
+
+### Source Constraints
+
+**Max Source Parallelism:**
+- Limits parallelism for source operators (e.g., Kafka topic partitions)
+- Automatically propagates constraints to all downstream operators
+- Prevents over-provisioning when source data is partition-limited
+
+**Example:**
+- Kafka topic with 12 partitions → Max source parallelism = 12
+- Downstream operators capped at 12 regardless of calculated requirements
+- Ensures realistic infrastructure sizing
+
+### Advanced Skew Modeling
+
+**Legacy Mode (Default):**
+- Flat 20% penalty for all keyBy operations
+- Simple but may under/overestimate for extreme skew scenarios
+
+**Advanced Mode:**
+- Configurable skew factor (p95 hot key concentration)
+- Skew factor of 2.0 = 2x concentration in hot keys
+- Formula: `effective_penalty = base_penalty × (skew_factor / 1.5)`
+- More realistic parallelism recommendations for hot-key workloads
+
+**Skew Factor Examples:**
+- `1.0` = No skew (perfectly uniform distribution)
+- `2.0` = Moderate skew (2x concentration in hot keys)
+- `3.0` = High skew (3x concentration in hot keys)
+- `5.0` = Extreme skew (5x concentration in hot keys)
+
+## RocksDB State Overhead Modeling
+
+The calculator now provides detailed RocksDB overhead modeling beyond simple `keys × bytesPerKey` calculations:
+
+### Overhead Components
+
+**Index Overhead:**
+- Accounts for block indexes, bloom filters, and other index structures
+- Typical range: 1.1-1.5x (10-50% overhead)
+- Larger block sizes reduce index overhead but increase read amplification
+
+**Compaction Amplification:**
+- Temporary space usage during SST file compaction
+- Typical range: 1.2-1.8x (20-80% overhead)
+- Depends on compaction strategy and write patterns
+
+**Metadata Overhead:**
+- WAL (Write-Ahead Log), manifest files, and other RocksDB metadata
+- Typical range: 1.05-1.15x (5-15% overhead)
+- Relatively constant across workloads
+
+**Compression Impact:**
+- Different compression algorithms affect space efficiency and CPU usage
+- Snappy: Good balance (1.0x space factor)
+- Zlib: Better compression but more CPU (0.9x space factor)
+- LZ4: Fast compression (0.95x space factor)
+- Bzip2: Best compression but slow (0.85x space factor)
+
+### Configuration Examples
+
+**Conservative Configuration:**
+- Index: 1.5x, Compaction: 1.8x, Metadata: 1.15x
+- Total: ~3.1x overhead (210% increase over raw state)
+
+**Typical Configuration:**
+- Index: 1.2x, Compaction: 1.3x, Metadata: 1.1x
+- Total: ~1.7x overhead (70% increase over raw state)
+
+**Optimistic Configuration:**
+- Index: 1.1x, Compaction: 1.2x, Metadata: 1.05x
+- Total: ~1.4x overhead (40% increase over raw state)
 
 ## Confidence Scoring
 
